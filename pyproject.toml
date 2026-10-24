@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fantasy-dynasty-agent"
+version = "0.1.0"
+description = "Sleeper dynasty/keeper league prep & research agent, maximized for auction drafts"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["httpx>=0.27"]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+agent = ["anthropic>=0.40"]
+dev = ["pytest>=8", "fastapi>=0.110", "anthropic>=0.40"]
+
+[project.scripts]
+dynasty-agent = "dynasty_agent.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["dynasty_agent*"]

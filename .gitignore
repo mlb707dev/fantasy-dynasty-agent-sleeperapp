@@ -1,0 +1,22 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.key
+secrets/
+
+# Private league data, personal boards, notes (keep local only)
+private/*
+!private/README.md
+
+# Cache / build
+.dynasty_agent_cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.DS_Store

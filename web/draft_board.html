@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dynasty Agent Draft Board</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--line:#2a2f3a;--text:#e7e9ee;--mute:#8a92a3;--accent:#4f8cff;--good:#2fbf71;--warn:#e0a526;--bad:#e5484d;--mine:#16325c}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f6f7f9;--panel:#fff;--line:#dde1e7;--text:#14171c;--mute:#5d6676;--mine:#dbe8ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:16px;margin:0 12px 0 0}
+input,select,button{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button{cursor:pointer}button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;padding:16px}
+main>*{min-width:0}
+header input,header select{max-width:100%}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.table-scroll{max-height:72vh;overflow:auto}
+table{width:100%;border-collapse:separate;border-spacing:0}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+thead th{position:sticky;top:0;background:var(--panel);cursor:pointer;user-select:none;z-index:1}
+th.num,td.num{text-align:right}
+tr.drafted td{opacity:.4;text-decoration:line-through}
+tr.kept td{opacity:.45}
+tr.mine td{background:var(--mine);opacity:1;text-decoration:none}
+.tag{font-size:11px;padding:1px 6px;border-radius:10px;border:1px solid var(--line);color:var(--mute)}
+.inj{color:var(--warn);font-weight:600;font-size:11px}
+.side{padding:12px}.side h2{font-size:14px;margin:0 0 8px}
+.budget{font-size:22px;font-weight:700}
+.slot{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--line)}
+.slot .who{color:var(--mute)}.slot.filled .who{color:var(--text)}
+.modal-bg{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:9}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;width:min(360px,92vw)}
+.modal .row{display:flex;gap:8px;margin-top:10px}
+.empty{padding:40px;text-align:center;color:var(--mute)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dynasty Agent Draft Board</h1>
+  <input id="apiUrl" placeholder="API base, e.g. http://localhost:8000" size="28">
+  <input id="leagueId" placeholder="Sleeper league ID" size="20">
+  <button class="primary" id="loadApi">Load</button>
+  <label><button id="pickFile" type="button">Open values.json</button><input id="file" type="file" accept=".json" hidden></label>
+  <input id="search" placeholder="Search player">
+  <select id="posFilter"><option value="">All pos</option></select>
+  <label><input type="checkbox" id="hideGone"> Hide drafted/kept</label>
+  <button id="reset">Reset draft</button>
+</header>
+<main>
+  <section class="panel">
+    <div class="table-scroll">
+      <table id="tbl">
+        <thead><tr>
+          <th data-k="rank" class="num">#</th><th data-k="name">Player</th><th data-k="pos">Pos</th>
+          <th data-k="team">Team</th><th data-k="value" class="num">Est $</th><th data-k="pts" class="num">Pts</th>
+          <th data-k="ppg" class="num">PPG</th><th data-k="vorp" class="num">VORP</th>
+          <th data-k="pts_per_dollar" class="num">Pts/$</th><th data-k="paid" class="num">Paid</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="empty">Load values from your Fantasy Dynasty Agent API or open a values.json (<code>dynasty-agent values --out values.json</code>).</div>
+    </div>
+  </section>
+  <aside class="panel side">
+    <h2>My team</h2>
+    <div>Budget left <span class="budget" id="budgetLeft">$0</span> · Max bid <b id="maxBid">$0</b></div>
+    <div style="margin:8px 0"><label>Budget <input id="budget" type="number" value="200" style="width:80px"></label>
+      <label>Keeper $ <input id="keeperSpend" type="number" value="0" style="width:70px"></label></div>
+    <div id="roster"></div>
+  </aside>
+</main>
+
+<div class="modal-bg" id="modalBg"><div class="modal">
+  <div id="mTitle" style="font-weight:700"></div>
+  <div class="row"><label>Price $ <input id="mPrice" type="number" min="0" style="width:90px"></label></div>
+  <div class="row"><button class="primary" id="mMine">My team</button><button id="mOther">Other team</button></div>
+  <div class="row"><button id="mUndo">Undo</button><button id="mCancel">Cancel</button></div>
+</div></div>
+
+<script>
+const ELIG={QB:["QB"],RB:["RB"],WR:["WR"],TE:["TE"],K:["K"],DEF:["DEF"],DL:["DL"],LB:["LB"],DB:["DB"],
+  FLEX:["RB","WR","TE"],WRRB_FLEX:["RB","WR"],REC_FLEX:["WR","TE"],SUPER_FLEX:["QB","RB","WR","TE"],
+  IDP_FLEX:["DL","LB","DB"],BN:["QB","RB","WR","TE","K","DEF","DL","LB","DB"]};
+const S={data:null,drafted:{},sort:{k:"rank",dir:1}};
+const $=id=>document.getElementById(id);
+const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},
+             set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const key=()=>"dynasty-agent-draft-"+(S.data?.league_id||"local");
+
+function setData(d){
+  S.data=d; S.drafted=store.get(key())||{};
+  const pos=[...new Set(d.players.map(p=>p.pos))].sort();
+  $("posFilter").innerHTML='<option value="">All pos</option>'+pos.map(p=>`<option>${p}</option>`).join("");
+  $("budget").value=d.budget||200;
+  const kp=store.get(key()+"-keeperSpend"); if(kp!=null)$("keeperSpend").value=kp;
+  render();
+}
+function gone(p){return p.kept||S.drafted[p.player_id]}
+function val(p,k){if(k==="paid")return S.drafted[p.player_id]?.price??-1;const v=p[k];return v==null?-Infinity:v}
+function render(){
+  if(!S.data)return; $("empty").style.display="none";
+  const q=$("search").value.toLowerCase(),pf=$("posFilter").value,hide=$("hideGone").checked,{k,dir}=S.sort;
+  let rows=S.data.players.filter(p=>(!q||p.name.toLowerCase().includes(q))&&(!pf||p.pos===pf)&&(!hide||!gone(p)));
+  rows.sort((a,b)=>{const ga=!!gone(a),gb=!!gone(b);if(ga!==gb)return ga-gb;
+    const va=val(a,k),vb=val(b,k);return typeof va==="string"?dir*va.localeCompare(vb):dir*(va-vb)});
+  $("tbl").tBodies[0].innerHTML=rows.slice(0,600).map(p=>{const d=S.drafted[p.player_id];
+    const cls=p.kept?"kept":d?(d.mine?"drafted mine":"drafted"):"";
+    return `<tr class="${cls}" data-id="${p.player_id}"><td class="num">${p.rank}</td>
+    <td>${esc(p.name)} ${p.injury_status?`<span class="inj">${esc(p.injury_status)}</span>`:""} ${p.kept?'<span class="tag">kept $'+p.keeper_cost+'</span>':""}</td>
+    <td>${p.pos}</td><td>${p.team||"FA"}</td><td class="num">${p.value!=null?"$"+p.value:"—"}</td>
+    <td class="num">${p.pts.toFixed(1)}</td><td class="num">${(p.ppg||0).toFixed(1)}</td><td class="num">${p.vorp}</td>
+    <td class="num">${p.pts_per_dollar??"—"}</td><td class="num">${d?"$"+d.price:""}</td></tr>`}).join("");
+  renderRoster();
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function renderRoster(){
+  const slots=(S.data.roster_positions||[]).filter(s=>!["IR","TAXI"].includes(s)).map(s=>({s,p:null}));
+  const byId=Object.fromEntries(S.data.players.map(p=>[p.player_id,p]));
+  const mine=Object.entries(S.drafted).filter(([,d])=>d.mine).map(([id,d])=>({...byId[id],price:d.price}))
+    .sort((a,b)=>b.price-a.price);
+  for(const p of mine){const order=[...slots].sort((a,b)=>(ELIG[a.s]||[]).length-(ELIG[b.s]||[]).length);
+    const open=order.find(x=>!x.p&&(ELIG[x.s]||[x.s]).includes(p.pos)); if(open)open.p=p;}
+  const spent=mine.reduce((t,p)=>t+p.price,0),budget=+$("budget").value-(+$("keeperSpend").value);
+  const left=budget-spent,openN=slots.filter(x=>!x.p).length;
+  $("budgetLeft").textContent="$"+left; $("maxBid").textContent="$"+Math.max(0,left-Math.max(0,openN-1));
+  $("roster").innerHTML=slots.map(x=>`<div class="slot ${x.p?"filled":""}"><span>${x.s}</span><span class="who">${x.p?esc(x.p.name)+" $"+x.p.price:"—"}</span></div>`).join("");
+}
+let cur=null;
+function openModal(p){cur=p;$("mTitle").textContent=`${p.name} · ${p.pos} ${p.team||""}`;
+  $("mPrice").value=S.drafted[p.player_id]?.price??p.value??1;$("modalBg").style.display="flex";$("mPrice").focus()}
+function closeModal(){$("modalBg").style.display="none";cur=null}
+function save(mine){S.drafted[cur.player_id]={price:+$("mPrice").value||0,mine};store.set(key(),S.drafted);closeModal();render()}
+$("mMine").onclick=()=>save(true);$("mOther").onclick=()=>save(false);
+$("mUndo").onclick=()=>{delete S.drafted[cur.player_id];store.set(key(),S.drafted);closeModal();render()};
+$("mCancel").onclick=closeModal;$("modalBg").onclick=e=>{if(e.target.id==="modalBg")closeModal()};
+$("tbl").tBodies[0].onclick=e=>{const tr=e.target.closest("tr");if(!tr)return;const p=S.data.players.find(x=>x.player_id===tr.dataset.id);if(p&&!p.kept)openModal(p)};
+$("tbl").tHead.onclick=e=>{const k=e.target.dataset.k;if(!k)return;
+  S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:["name","pos","team","rank"].includes(k)?1:-1};render()};
+["search","posFilter","hideGone","budget"].forEach(id=>$(id).addEventListener("input",render));
+$("keeperSpend").addEventListener("input",()=>{store.set(key()+"-keeperSpend",+$("keeperSpend").value);render()});
+$("reset").onclick=()=>{if(!S.data)return;S.drafted={};store.set(key(),{});render()};
+$("pickFile").onclick=()=>$("file").click();
+$("file").onchange=async e=>{const f=e.target.files[0];if(f)setData(JSON.parse(await f.text()))};
+$("loadApi").onclick=async()=>{const base=$("apiUrl").value.replace(/\/$/,""),lid=$("leagueId").value.trim();
+  if(!base||!lid)return;store.set("dynasty-agent-api",{base,lid});
+  try{const r=await fetch(`${base}/v1/public/league/${lid}/values`);if(!r.ok)throw new Error(r.status);setData(await r.json())}
+  catch(err){$("empty").style.display="block";$("empty").textContent="Load failed: "+err.message}};
+const last=store.get("dynasty-agent-api");if(last){$("apiUrl").value=last.base;$("leagueId").value=last.lid}
+</script>
+</body>
+</html>

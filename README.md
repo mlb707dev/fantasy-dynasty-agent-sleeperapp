@@ -114,3 +114,7 @@ Tests run offline against a mocked Sleeper API built from real 2025 auction pick
 
 - Sleeper API docs: https://docs.sleeper.com/ — `/projections` is undocumented and may change.
 - Anthropic web search tool: https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool
+
+## License
+
+MIT — see [LICENSE](LICENSE). Free to use, modify and share.

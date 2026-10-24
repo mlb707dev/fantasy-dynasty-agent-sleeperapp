@@ -9,10 +9,10 @@ Fantasy Dynasty Agent pulls your league straight from Sleeper, scores every play
 | `dynasty_agent/sleeper.py` | Client for Sleeper's public, keyless API (league, rosters, users, drafts, picks, players, stats, projections) |
 | `dynasty_agent/scoring.py` | Scores raw stat lines with the league's `scoring_settings` — reproduces custom/IDP scoring exactly |
 | `dynasty_agent/keepers.py` | Last-year auction prices, keeper cost (`last price + $5` by default), league-wide keeper decoding, keeper surplus ranking |
-| `dynasty_agent/valuation.py` | League-wide starter fill → replacement level → VORP → auction $ (net of keeper spend and $1 minimums) → Pts/$ |
+| `dynasty_agent/valuation.py` | League-wide starter fill → replacement level → VORP → auction dollars (net of keeper spend and one-dollar minimums) → points per dollar |
 | `dynasty_agent/agent.py` | Claude research agent with web search (needs **your own** Anthropic key) |
 | `dynasty_agent/api/app.py` | HTTP API with **public** and **private** routes |
-| `web/draft_board.html` | Live auction board: sortable (rank, player, pos, $, pts, PPG, VORP, Pts/$), sticky header, mark drafted with price → My team / Other team, auto-filling roster board, budget left & max bid |
+| `web/draft_board.html` | Live auction board: sortable (rank, player, pos, est. value, pts, PPG, VORP, points per dollar), sticky header, mark drafted with price → My team / Other team, auto-filling roster board, budget left & max bid |
 
 ---
 

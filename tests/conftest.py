@@ -1,4 +1,4 @@
-"""Offline Sleeper mock built from real 2025 SuspishCommish draft data + real player records.
+"""Offline Sleeper mock built from real 2025 draft data (Real Fantasy League 2026) + real player records.
 
 Season stats are synthetic (deterministic) — only used to exercise the math.
 """

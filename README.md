@@ -117,4 +117,6 @@ Tests run offline against a mocked Sleeper API built from real 2025 auction pick
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Free to use, modify and share.
+[PolyForm Noncommercial 1.0.0](LICENSE) — free to read, run, study, modify and share for personal, research and other noncommercial purposes. Commercial use (selling it, hosting it as a paid service, bundling it into a product) is not licensed; contact the owner for commercial terms.
+
+Required Notice: Copyright mlb707dev (https://github.com/mlb707dev)
